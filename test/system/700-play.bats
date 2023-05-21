@@ -709,3 +709,61 @@ spec:
 
     run_podman kube down $pod_file
 }
+
+@test "podman kube play with multiple bind-mount-options" {
+    localdir_1="${PODMAN_TMPDIR}/$(random_string 4)"
+    localdir_2="${PODMAN_TMPDIR}/$(random_string 4)"
+    localdir_3="${PODMAN_TMPDIR}/$(random_string 4)"
+
+    mkdir -p $localdir_1
+    mkdir -p $localdir_2
+    mkdir -p $localdir_3
+
+    pod_file=${PODMAN_TMPDIR}/play_kube_multi-bind-mount-options_$(random_string 6).yaml
+    echo "
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test_pod
+  annotations:
+    bind-mount-options: $localdir_1:Z,$localdir_3:Z
+spec:
+  restartPolicy: Never
+  containers:
+  - name: server
+    image: $IMAGE
+    volumeMounts:
+    - mountPath: /tmp/1
+      name: mount-1
+    - mountPath: /tmp/2
+      name: mount-2
+    - mountPath: /tmp/3
+      name: mount-3
+    command:
+      - top
+  volumes:
+  - hostPath:
+      path: $localdir_1
+      type: Directory
+    name: mount-1
+  - hostPath:
+      path: $localdir_2
+      type: Directory
+    name: mount-2
+  - hostPath:
+      path: $localdir_3
+      type: Directory
+    name: mount-3
+" > $pod_file
+
+    run_podman kube play $pod_file
+
+    run_podman exec test_pod-server /bin/sh -c "echo hello > /tmp/1/hello.txt"
+    run_podman 1 exec test_pod-server /bin/sh -c "echo hello > /tmp/2/hello.txt"
+    run_podman exec test_pod-server /bin/sh -c "echo hello > /tmp/3/hello.txt"
+
+    run_podman kube down $pod_file
+    rm -rf $localdir_1
+    rm -rf $localdir_2
+    rm -rf $localdir_3
+}

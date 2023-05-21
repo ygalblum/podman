@@ -389,6 +389,15 @@ func ToSpecGen(ctx context.Context, opts *CtrSpecGenOptions) (*specgen.SpecGener
 	}
 	s.Env = envs
 
+	bindMountOptionsMap := make(map[string]string)
+	if bindMountOptionsString, ok := opts.Annotations[define.BindMountPrefix]; ok {
+		bindMountOptionsArray := strings.Split(bindMountOptionsString, ",")
+		for _, bindMountOptions := range bindMountOptionsArray {
+			nameOptions := strings.Split(bindMountOptions, ":")
+			bindMountOptionsMap[nameOptions[0]] = nameOptions[1]
+		}
+	}
+
 	for _, volume := range opts.Container.VolumeMounts {
 		volumeSource, exists := opts.Volumes[volume.Name]
 		if !exists {
@@ -410,14 +419,10 @@ func ToSpecGen(ctx context.Context, opts *CtrSpecGenOptions) (*specgen.SpecGener
 		case KubeVolumeTypeBindMount:
 			// If the container has bind mounts, we need to check if
 			// a selinux mount option exists for it
-			for k, v := range opts.Annotations {
-				// Make sure the z/Z option is not already there (from editing the YAML)
-				if k == define.BindMountPrefix {
-					lastIndex := strings.LastIndex(v, ":")
-					if v[:lastIndex] == volumeSource.Source && !cutil.StringInSlice("z", options) && !cutil.StringInSlice("Z", options) {
-						options = append(options, v[lastIndex+1:])
-					}
-				}
+			// Make sure the z/Z option is not already there (from editing the YAML)
+			bindMountOptions, ok := bindMountOptionsMap[volumeSource.Source]
+			if ok && !cutil.StringInSlice("z", options) && !cutil.StringInSlice("Z", options) {
+				options = append(options, bindMountOptions)
 			}
 			mount := spec.Mount{
 				Destination: volume.MountPath,
