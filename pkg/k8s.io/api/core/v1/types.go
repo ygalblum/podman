@@ -62,6 +62,24 @@ type VolumeSource struct {
 	// More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
 	// +optional
 	EmptyDir *EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+	// Image represents an OCI object (a container image or artifact) pulled and mounted as a volume.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes/#image
+	// +optional
+	Image *ImageVolumeSource
+}
+
+// ImageVolumeSource represents a image volume resource.
+type ImageVolumeSource struct {
+	// Required: Image or artifact reference to be used.
+	Reference string
+
+	// Policy for pulling OCI objects. Possible values are:
+	// Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails.
+	// Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present.
+	// IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.
+	// Defaults to Always if :latest tag is specified, or IfNotPresent otherwise.
+	// +optional
+	PullPolicy PullPolicy
 }
 
 // PersistentVolumeClaimVolumeSource references the user's PVC in the same namespace.

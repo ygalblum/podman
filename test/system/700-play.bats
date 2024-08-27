@@ -1120,3 +1120,57 @@ EOF
 
     run_podman pod rm -f $podname
 }
+
+@test "podman play - image based volume" {
+    imgname="image-vol-img-$(safename)"
+    podname="p-$(safename)"
+    ctrname="c-$(safename)"
+
+    cat >$PODMAN_TMPDIR/Containerfile <<EOF
+FROM $IMAGE
+RUN mkdir /test /test_same && \
+    touch /test/a /test/b /test/c && \
+    echo "I am from test image" > /test_same/hello_world
+VOLUME /test
+VOLUME /test_same
+EOF
+    run_podman build -t $imgname -f $PODMAN_TMPDIR/Containerfile
+
+    fname="/$PODMAN_TMPDIR/play_kube_wait_$(safename).yaml"
+    cat >$fname <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: test
+  name: $podname
+spec:
+  restartPolicy: Never
+  containers:
+    - name: $ctrname
+      image: $IMAGE
+      command:
+      - top
+      volumeMounts:
+      - name: imgVol
+        MountPath: /test
+  volumes:
+  - name: imgVol
+    image:
+      reference: $imgname
+EOF
+
+    run_podman kube play $fname
+
+    run_podman exec "$podname-$ctrname" ls -x /test//test
+    assert "a  b  c" "ls /test inside container"
+
+    run_podman exec "$podname-$ctrname" cat /test/test_same/hello_world
+    assert "I am from test image" "cat /test_same/hello_world inside container"
+
+    run_podman 1 exec "$podname-$ctrname" touch /test/test/readonly
+    assert "$output" =~ "Read-only file system" "image mounted as readonly"
+
+    run_podman kube down $fname
+    run_podman rmi $imgname
+}

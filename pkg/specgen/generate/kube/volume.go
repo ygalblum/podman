@@ -37,13 +37,14 @@ const (
 	KubeVolumeTypeSecret
 	KubeVolumeTypeEmptyDir
 	KubeVolumeTypeEmptyDirTmpfs
+	KubeVolumeTypeImage
 )
 
 //nolint:revive
 type KubeVolume struct {
 	// Type of volume to create
 	Type KubeVolumeType
-	// Path for bind mount or volume name for named volume
+	// Path for bind mount, image name or volume name for named volume
 	Source string
 	// Items to add to a named volume created where the key is the file name and the value is the data
 	// This is only used when there are volumes in the yaml that refer to a configmap
@@ -264,6 +265,13 @@ func VolumeFromConfigMap(configMapVolumeSource *v1.ConfigMapVolumeSource, config
 	return kv, nil
 }
 
+func VolumeFromImage(imageVolumeSource *v1.ImageVolumeSource) (*KubeVolume, error) {
+	return &KubeVolume{
+		Type: KubeVolumeTypeImage,
+		Source: imageVolumeSource.Reference,
+	}, nil
+}
+
 // Create a kubeVolume for an emptyDir volume
 func VolumeFromEmptyDir(emptyDirVolumeSource *v1.EmptyDirVolumeSource, name string) (*KubeVolume, error) {
 	if emptyDirVolumeSource.Medium == v1.StorageMediumMemory {
@@ -292,8 +300,10 @@ func VolumeFromSource(volumeSource v1.VolumeSource, configMaps []v1.ConfigMap, s
 		return VolumeFromSecret(volumeSource.Secret, secretsManager)
 	case volumeSource.EmptyDir != nil:
 		return VolumeFromEmptyDir(volumeSource.EmptyDir, volName)
+	case volumeSource.Image != nil:
+		return VolumeFromImage(volumeSource.Image)
 	default:
-		return nil, errors.New("HostPath, ConfigMap, EmptyDir, Secret, and PersistentVolumeClaim are currently the only supported VolumeSource")
+		return nil, errors.New("HostPath, ConfigMap, EmptyDir, Secret, Image, and PersistentVolumeClaim are currently the only supported VolumeSource")
 	}
 }
 

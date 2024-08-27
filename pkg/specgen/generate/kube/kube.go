@@ -567,6 +567,13 @@ func ToSpecGen(ctx context.Context, opts *CtrSpecGenOptions) (*specgen.SpecGener
 				Source:      define.TypeTmpfs,
 			}
 			s.Mounts = append(s.Mounts, memVolume)
+		case KubeVolumeTypeImage:
+			imageVolume := &specgen.ImageVolume{
+				Source:      volumeSource.Source,
+				Destination: volume.MountPath,
+				ReadWrite:   false,
+			}
+			s.ImageVolumes = append(s.ImageVolumes, imageVolume)
 		default:
 			return nil, errors.New("unsupported volume source type")
 		}
