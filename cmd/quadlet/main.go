@@ -164,8 +164,11 @@ func getUnitDirs(rootless bool) []string {
 	}
 
 	dirs = appendSubPaths(dirs, quadlet.UnitDirTemp, false, userLevelFilter)
+	dirs = appendSymLinkSubPaths(dirs, quadlet.ExtraUnitDirTemp)
 	dirs = appendSubPaths(dirs, quadlet.UnitDirAdmin, false, userLevelFilter)
-	return appendSubPaths(dirs, quadlet.UnitDirDistro, false, nil)
+	dirs = appendSymLinkSubPaths(dirs, quadlet.ExtraUnitDirAdmin)
+	dirs = appendSubPaths(dirs, quadlet.UnitDirDistro, false, nil)
+	return appendSymLinkSubPaths(dirs, quadlet.ExtraUnitDirDistro)
 }
 
 func appendSymLinkSubPaths(dirs []string, basePath string) []string {

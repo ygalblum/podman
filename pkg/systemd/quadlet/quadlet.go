@@ -22,10 +22,16 @@ const (
 	autoUpdateLabel = "io.containers.autoupdate"
 	// Directory for temporary Quadlet files (sysadmin owned)
 	UnitDirTemp = "/run/containers/systemd"
+	// Extra directory (with symlink resolution) for temporary Quadlet files (sysadmin owned)
+	ExtraUnitDirTemp = "/run/containers/systemd.d"
 	// Directory for global Quadlet files (sysadmin owned)
 	UnitDirAdmin = "/etc/containers/systemd"
+	// Extra directory (with symlink resolution) for global Quadlet files (sysadmin owned)
+	ExtraUnitDirAdmin = "/etc/containers/systemd.d"
 	// Directory for global Quadlet files (distro owned)
 	UnitDirDistro = "/usr/share/containers/systemd"
+	// Extra directory (with symlink resolution) for global Quadlet files (distro owned)
+	ExtraUnitDirDistro = "/usr/share/containers/systemd.d"
 
 	// Names of commonly used systemd/quadlet group names
 	ContainerGroup  = "Container"
