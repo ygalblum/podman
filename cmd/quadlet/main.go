@@ -143,6 +143,7 @@ func getUnitDirs(rootless bool) []string {
 		runtimeDir, found := os.LookupEnv("XDG_RUNTIME_DIR")
 		if found {
 			dirs = appendSubPaths(dirs, path.Join(runtimeDir, "containers/systemd"), false, nil)
+			dirs = appendSymLinkSubPaths(dirs, path.Join(runtimeDir, "containers/systemd.d"))
 		}
 
 		configDir, err := os.UserConfigDir()
@@ -151,6 +152,7 @@ func getUnitDirs(rootless bool) []string {
 			return nil
 		}
 		dirs = appendSubPaths(dirs, path.Join(configDir, "containers/systemd"), false, nil)
+		dirs = appendSymLinkSubPaths(dirs, path.Join(configDir, "containers/systemd.d"))
 		u, err := user.Current()
 		if err == nil {
 			dirs = appendSubPaths(dirs, filepath.Join(quadlet.UnitDirAdmin, "users"), true, nonNumericFilter)
@@ -164,6 +166,48 @@ func getUnitDirs(rootless bool) []string {
 	dirs = appendSubPaths(dirs, quadlet.UnitDirTemp, false, userLevelFilter)
 	dirs = appendSubPaths(dirs, quadlet.UnitDirAdmin, false, userLevelFilter)
 	return appendSubPaths(dirs, quadlet.UnitDirDistro, false, nil)
+}
+
+func appendSymLinkSubPaths(dirs []string, basePath string) []string {
+	resolvedBasePath, err := filepath.EvalSymlinks(basePath)
+	if err != nil {
+		Debugf("Error occurred resolving path %q: %s", basePath, err)
+		// Despite the failure add the path to the list for logging purposes
+		// This is the equivalent of adding the path when info==nil below
+		dirs = append(dirs, basePath)
+		return dirs
+	}
+
+	entries, err := os.ReadDir(resolvedBasePath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			Debugf("Error reading the base path %q: %s", resolvedBasePath, err)
+		}
+		return dirs
+	}
+
+	for _, entry := range entries {
+		entryPath := path.Join(resolvedBasePath, entry.Name())
+		if entry.IsDir() {
+			dirs = appendSubPaths(dirs, entryPath, false, nil)
+		} else if entry.Type()&fs.ModeSymlink != 0 {
+			resolvedPath, err := filepath.EvalSymlinks(entryPath)
+			if err != nil {
+				Debugf("Error occurred resolving path %q: %s", entryPath, err)
+				continue
+			}
+			info, err := os.Stat(resolvedPath)
+			if err != nil {
+				Debugf("Error getting stat for %q: %s", resolvedPath, err)
+				continue
+			}
+			if info.IsDir() {
+				dirs = appendSubPaths(dirs, resolvedPath, false, nil)
+			}
+		}
+	}
+
+	return dirs
 }
 
 func appendSubPaths(dirs []string, path string, isUserFlag bool, filterPtr func(string, bool) bool) []string {
