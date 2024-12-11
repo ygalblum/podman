@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/containers/podman/v5/pkg/systemd/parser"
@@ -627,7 +629,22 @@ func generateUnitsInfoMap(units []*parser.UnitFile) map[string]*quadlet.UnitInfo
 }
 
 func main() {
-	if err := process(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	done := make(chan error)
+	go func() {
+		done <- process()
+	}()
+
+	var err error
+	select {
+	case <-ctx.Done():
+		err = fmt.Errorf("processing timed out: %w", ctx.Err())
+	case err = <-done:
+	}
+
+	if err != nil {
 		Logf("%s", err.Error())
 		os.Exit(1)
 	}
