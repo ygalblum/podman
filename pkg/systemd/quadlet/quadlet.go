@@ -922,6 +922,15 @@ func GetContainerResourceName(container *parser.UnitFile) string {
 	}
 }
 
+func GetPodResourceName(podUnit *parser.UnitFile) string {
+	// Derive pod name from unit name (with added prefix), or use user-provided name.
+	podName, ok := podUnit.Lookup(PodGroup, KeyPodName)
+	if !ok || len(podName) == 0 {
+		podName = removeExtension(podUnit.Filename, "systemd-", "")
+	}
+	return podName
+}
+
 func defaultOneshotServiceGroup(service *parser.UnitFile, remainAfterExit bool) {
 	// The default syslog identifier is the exec basename (podman) which isn't very useful here
 	if _, ok := service.Lookup(ServiceGroup, "SyslogIdentifier"); !ok {
@@ -1486,11 +1495,7 @@ func ConvertPod(podUnit *parser.UnitFile, name string, unitsInfoMap map[string]*
 		return nil, warnings, err
 	}
 
-	// Derive pod name from unit name (with added prefix), or use user-provided name.
-	podName, ok := podUnit.Lookup(PodGroup, KeyPodName)
-	if !ok || len(podName) == 0 {
-		podName = removeExtension(name, "systemd-", "")
-	}
+	podName := GetPodResourceName(podUnit)
 
 	for _, containerService := range unitInfo.ContainersToStart {
 		service.Add(UnitGroup, "Wants", containerService)
@@ -1502,24 +1507,24 @@ func ConvertPod(podUnit *parser.UnitFile, name string, unitsInfoMap map[string]*
 	}
 
 	execStart := createBasePodmanCommand(podUnit, PodGroup)
-	execStart.add("pod", "start", "--pod-id-file=%t/%N.pod-id")
+	execStart.add("pod", "start", podName)
 	service.AddCmdline(ServiceGroup, "ExecStart", execStart.Args)
 
 	execStop := createBasePodmanCommand(podUnit, PodGroup)
 	execStop.add("pod", "stop")
 	execStop.add(
-		"--pod-id-file=%t/%N.pod-id",
 		"--ignore",
 		"--time=10",
+		podName,
 	)
 	service.AddCmdline(ServiceGroup, "ExecStop", execStop.Args)
 
 	execStopPost := createBasePodmanCommand(podUnit, PodGroup)
 	execStopPost.add("pod", "rm")
 	execStopPost.add(
-		"--pod-id-file=%t/%N.pod-id",
 		"--ignore",
 		"--force",
+		podName,
 	)
 	service.AddCmdline(ServiceGroup, "ExecStopPost", execStopPost.Args)
 
@@ -1527,7 +1532,6 @@ func ConvertPod(podUnit *parser.UnitFile, name string, unitsInfoMap map[string]*
 	execStartPre.add("pod", "create")
 	execStartPre.add(
 		"--infra-conmon-pidfile=%t/%N.pid",
-		"--pod-id-file=%t/%N.pod-id",
 		"--exit-policy=stop",
 		"--replace",
 	)
@@ -2070,7 +2074,7 @@ func handlePod(quadletUnitFile, serviceUnitFile *parser.UnitFile, groupName stri
 			return fmt.Errorf("quadlet pod unit %s does not exist", pod)
 		}
 
-		podman.add("--pod-id-file", fmt.Sprintf("%%t/%s.pod-id", podInfo.ServiceName))
+		podman.add("--pod", podInfo.ResourceName)
 
 		podServiceName := podInfo.ServiceFileName()
 		serviceUnitFile.Add(UnitGroup, "BindsTo", podServiceName)
