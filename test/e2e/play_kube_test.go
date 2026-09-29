@@ -6963,17 +6963,22 @@ RUN echo "nested-build-marker" > /nested-marker`), 0o644)).To(Succeed())
 		err := writeYaml(replicasPodYaml, kubeYaml)
 		Expect(err).ToNot(HaveOccurred())
 
-		podmanTest.PodmanExitCleanly("kube", "play", "-q", "--multiple-pods", "--publish", fmt.Sprintf("%d:%d,%d:%d", GetPort(), 80, GetPort(), 80), kubeYaml)
+		port1 := GetPort()
+		port2 := 0
+		// Nothing in GetPort() ensures we will not get the same port twice, if we do, this test would fail.
+		// Thus make sure it does not happen to avoid flakes.
+		const iter = 1000
+		for i := range iter {
+			port2 = GetPort()
+			if port2 != port1 {
+				break
+			}
+			if i == iter-1 {
+				Fail("No second free port found")
+			}
+		}
 
-		podsCount := podmanTest.PodmanExitCleanly("pod", "ps", "-n")
-		Expect(podsCount.OutputToStringArray()).To(HaveLen(2))
-	})
-
-	It("multiple Pod replicas down", func() {
-		err := writeYaml(replicasPodYaml, kubeYaml)
-		Expect(err).ToNot(HaveOccurred())
-
-		podmanTest.PodmanExitCleanly("kube", "play", "-q", "--multiple-pods", "--publish", fmt.Sprintf("%d:%d,%d:%d", GetPort(), 80, GetPort(), 80), kubeYaml)
+		podmanTest.PodmanExitCleanly("kube", "play", "-q", "--multiple-pods", "--publish", fmt.Sprintf("%d:%d,%d:%d", port1, 80, port2, 80), kubeYaml)
 
 		podsCount := podmanTest.PodmanExitCleanly("pod", "ps", "-n")
 		Expect(podsCount.OutputToStringArray()).To(HaveLen(2))
