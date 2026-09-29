@@ -6967,16 +6967,6 @@ RUN echo "nested-build-marker" > /nested-marker`), 0o644)).To(Succeed())
 
 		podsCount := podmanTest.PodmanExitCleanly("pod", "ps", "-n")
 		Expect(podsCount.OutputToStringArray()).To(HaveLen(2))
-	})
-
-	It("multiple Pod replicas down", func() {
-		err := writeYaml(replicasPodYaml, kubeYaml)
-		Expect(err).ToNot(HaveOccurred())
-
-		podmanTest.PodmanExitCleanly("kube", "play", "-q", "--multiple-pods", "--publish", fmt.Sprintf("%d:%d,%d:%d", GetPort(), 80, GetPort(), 80), kubeYaml)
-
-		podsCount := podmanTest.PodmanExitCleanly("pod", "ps", "-n")
-		Expect(podsCount.OutputToStringArray()).To(HaveLen(2))
 
 		podmanTest.PodmanExitCleanly("kube", "down", kubeYaml)
 
