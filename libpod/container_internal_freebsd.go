@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -370,7 +369,11 @@ func (s *safeMountInfo) Close() {
 // The caller is responsible for closing the file descriptor and unmounting the subpath
 // when it's no longer needed.
 func (c *Container) safeMountSubPath(mountPoint, subpath string) (s *safeMountInfo, err error) {
-	return &safeMountInfo{mountPoint: filepath.Join(mountPoint, subpath)}, nil
+	path, err := securejoin.SecureJoin(mountPoint, subpath)
+	if err != nil {
+		return nil, err
+	}
+	return &safeMountInfo{mountPoint: path}, nil
 }
 
 func (c *Container) makePlatformMtabLink(_, _, _ int) error {

@@ -637,6 +637,7 @@ type safeMountInfo struct {
 func (s *safeMountInfo) Close() {
 	_ = unix.Unmount(s.mountPoint, unix.MNT_DETACH)
 	_ = s.file.Close()
+	_ = os.Remove(s.mountPoint)
 }
 
 // safeMountSubPath securely mounts a subpath inside a volume to a new temporary location.
@@ -650,6 +651,15 @@ func (c *Container) safeMountSubPath(mountPoint, subpath string) (s *safeMountIn
 	if err != nil {
 		return nil, err
 	}
+	var npath string
+	defer func() {
+		if err != nil {
+			_ = file.Close()
+			if npath != "" {
+				_ = os.Remove(npath)
+			}
+		}
+	}()
 
 	// we need to always reference the file by its fd, that points inside the mountpoint.
 	fname := fmt.Sprintf("/proc/self/fd/%d", int(file.Fd()))
@@ -658,7 +668,6 @@ func (c *Container) safeMountSubPath(mountPoint, subpath string) (s *safeMountIn
 	if err != nil {
 		return nil, err
 	}
-	var npath string
 	switch {
 	case fi.Mode()&fs.ModeSymlink != 0:
 		return nil, fmt.Errorf("file %q is a symlink", filepath.Join(mountPoint, subpath))

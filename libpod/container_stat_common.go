@@ -19,22 +19,21 @@ import (
 // along with the resolved root and the resolved path.  Both paths are absolute
 // to the host's root.  Note that the paths may resolved outside the
 // container's mount point (e.g., to a volume or bind mount).
-func (c *Container) statOnHost(ctx context.Context, mountPoint string, containerPath string) (*copier.StatForItem, string, string, error) {
+func (c *Container) statOnHost(ctx context.Context, mountPoint string, containerPath string) (*copier.StatForItem, pathResolution, error) {
 	// Now resolve the container's path.  It may hit a volume, it may hit a
 	// bind mount, it may be relative.
-	resolvedRoot, resolvedPath, _, err := c.resolvePath(mountPoint, containerPath)
+	resolved, err := c.resolvePath(mountPoint, containerPath)
 	if err != nil {
-		return nil, "", "", err
+		return nil, pathResolution{}, err
 	}
 
-	statInfo, err := secureStat(ctx, resolvedRoot, resolvedPath)
-	return statInfo, resolvedRoot, resolvedPath, err
+	statInfo, err := secureStat(ctx, resolved.root, resolved.path)
+	return statInfo, resolved, err
 }
 
-func (c *Container) stat(ctx context.Context, containerMountPoint string, containerPath string) (*define.FileInfo, string, string, error) {
+func (c *Container) stat(ctx context.Context, containerMountPoint string, containerPath string) (*define.FileInfo, pathResolution, error) {
 	var (
-		resolvedRoot     string
-		resolvedPath     string
+		resolved         pathResolution
 		absContainerPath string
 		statInfo         *copier.StatForItem
 		statErr          error
@@ -50,13 +49,13 @@ func (c *Container) stat(ctx context.Context, containerMountPoint string, contai
 	// TODO: it's now technically possible wildcards.
 	// We may consider enabling support in the future.
 	if strings.Contains(containerPath, "*") {
-		return nil, "", "", copy.ErrENOENT
+		return nil, pathResolution{}, copy.ErrENOENT
 	}
 
-	statInfo, resolvedRoot, resolvedPath, statErr = c.statInContainer(ctx, containerMountPoint, containerPath)
+	statInfo, resolved, statErr = c.statInContainer(ctx, containerMountPoint, containerPath)
 	if statErr != nil {
 		if statInfo == nil {
-			return nil, "", "", statErr
+			return nil, resolved, statErr
 		}
 		// Not all errors from secureStat map to ErrNotExist, so we
 		// have to look into the error string.  Turning it into an
@@ -72,9 +71,9 @@ func (c *Container) stat(ctx context.Context, containerMountPoint string, contai
 		// Symlinks are already evaluated and always relative to the
 		// container's mount point.
 		absContainerPath = statInfo.ImmediateTarget
-	case strings.HasPrefix(resolvedPath, containerMountPoint):
+	case strings.HasPrefix(resolved.path, containerMountPoint):
 		// If the path is on the container's mount point, strip it off.
-		absContainerPath = strings.TrimPrefix(resolvedPath, containerMountPoint)
+		absContainerPath = strings.TrimPrefix(resolved.path, containerMountPoint)
 		absContainerPath = filepath.Join("/", absContainerPath)
 	default:
 		// No symlink and not on the container's mount point, so let's
@@ -87,7 +86,7 @@ func (c *Container) stat(ctx context.Context, containerMountPoint string, contai
 	// packages likes to remove trailing slashes and dots that are crucial
 	// to the copy logic.
 	absContainerPath = copy.PreserveBasePath(containerPath, absContainerPath)
-	resolvedPath = copy.PreserveBasePath(containerPath, resolvedPath)
+	resolved.path = copy.PreserveBasePath(containerPath, resolved.path)
 
 	info := &define.FileInfo{
 		IsDir:      statInfo.IsDir,
@@ -98,7 +97,7 @@ func (c *Container) stat(ctx context.Context, containerMountPoint string, contai
 		LinkTarget: absContainerPath,
 	}
 
-	return info, resolvedRoot, resolvedPath, statErr
+	return info, resolved, statErr
 }
 
 // secureStat extracts file info for path in a chroot'ed environment in root.

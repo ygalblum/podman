@@ -27,8 +27,6 @@ import (
 func (c *Container) copyFromArchive(ctx context.Context, path string, chown, noOverwriteDirNonDir bool, rename map[string]string, reader io.Reader) (func() error, error) {
 	var (
 		mountPoint   string
-		resolvedRoot string
-		resolvedPath string
 		unmount      func()
 		cleanupFuncs []func()
 		err          error
@@ -135,13 +133,18 @@ func (c *Container) copyFromArchive(ctx context.Context, path string, chown, noO
 		}
 	}
 
-	resolvedRoot, resolvedPath, volume, err := c.resolveCopyTarget(mountPoint, path)
+	resolved, err := c.resolveCopyTarget(mountPoint, path)
 	if err != nil {
 		unmount()
 		return nil, err
 	}
+	cleanup := func() {
+		resolved.close()
+		unmount()
+	}
 
-	if volume != nil {
+	if resolved.volume != nil {
+		volume := resolved.volume
 		// This must be the first cleanup function so it fires before volume unmounts happen.
 		cleanupFuncs = append([]func(){func() {
 			// This is a gross hack to ensure correct permissions
@@ -193,7 +196,7 @@ func (c *Container) copyFromArchive(ctx context.Context, path string, chown, noO
 		// Make sure we chown the files to the container's main user and group ID.
 		user, err := getContainerUser(c, mountPoint)
 		if err != nil {
-			unmount()
+			cleanup()
 			return nil, err
 		}
 		idPair = &idtools.IDPair{UID: int(user.UID), GID: int(user.GID)}
@@ -201,16 +204,16 @@ func (c *Container) copyFromArchive(ctx context.Context, path string, chown, noO
 
 	decompressed, err := archive.DecompressStream(reader)
 	if err != nil {
-		unmount()
+		cleanup()
 		return nil, err
 	}
 
 	locked = false
 
-	logrus.Debugf("Container copy *to* %q (resolved: %q) on container %q (ID: %s)", path, resolvedPath, c.Name(), c.ID())
+	logrus.Debugf("Container copy *to* %q (resolved: %q) on container %q (ID: %s)", path, resolved.path, c.Name(), c.ID())
 
 	return func() error {
-		defer unmount()
+		defer cleanup()
 		defer decompressed.Close()
 		putOptions := copier.PutOptions{
 			UIDMap:               c.config.IDMappings.UIDMap,
@@ -224,7 +227,7 @@ func (c *Container) copyFromArchive(ctx context.Context, path string, chown, noO
 
 		return c.joinMountAndExec(
 			func() error {
-				return copier.PutContext(ctx, resolvedRoot, resolvedPath, putOptions, decompressed)
+				return copier.PutContext(ctx, resolved.root, resolved.path, putOptions, decompressed)
 			},
 		)
 	}, nil
@@ -254,10 +257,15 @@ func (c *Container) copyToArchive(ctx context.Context, path string, writer io.Wr
 		}
 	}
 
-	statInfo, resolvedRoot, resolvedPath, err := c.stat(ctx, mountPoint, path)
+	statInfo, resolved, err := c.stat(ctx, mountPoint, path)
 	if err != nil {
+		resolved.close()
 		unmount()
 		return nil, err
+	}
+	cleanup := func() {
+		resolved.close()
+		unmount()
 	}
 
 	// We optimistically chown to the host user.  In case of a hypothetical
@@ -265,7 +273,7 @@ func (c *Container) copyToArchive(ctx context.Context, path string, writer io.Wr
 	// container user.
 	user, err := getContainerUser(c, mountPoint)
 	if err != nil {
-		unmount()
+		cleanup()
 		return nil, err
 	}
 	hostUID, hostGID, err := util.GetHostIDs(
@@ -275,15 +283,15 @@ func (c *Container) copyToArchive(ctx context.Context, path string, writer io.Wr
 		user.GID,
 	)
 	if err != nil {
-		unmount()
+		cleanup()
 		return nil, err
 	}
 	idPair := idtools.IDPair{UID: int(hostUID), GID: int(hostGID)}
 
-	logrus.Debugf("Container copy *from* %q (resolved: %q) on container %q (ID: %s)", path, resolvedPath, c.Name(), c.ID())
+	logrus.Debugf("Container copy *from* %q (resolved: %q) on container %q (ID: %s)", path, resolved.path, c.Name(), c.ID())
 
 	return func() error {
-		defer unmount()
+		defer cleanup()
 		getOptions := copier.GetOptions{
 			// Unless the specified points to ".", we want to copy the base directory.
 			KeepDirectoryNames: statInfo.IsDir && filepath.Base(path) != ".",
@@ -300,7 +308,7 @@ func (c *Container) copyToArchive(ctx context.Context, path string, writer io.Wr
 		}
 		return c.joinMountAndExec(
 			func() error {
-				return copier.GetContext(ctx, resolvedRoot, "", getOptions, []string{resolvedPath}, writer)
+				return copier.GetContext(ctx, resolved.root, "", getOptions, []string{resolved.path}, writer)
 			},
 		)
 	}, nil
