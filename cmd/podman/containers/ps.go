@@ -295,7 +295,7 @@ func ps(cmd *cobra.Command, _ []string) error {
 }
 
 // cannot use report.Headers() as it doesn't support structures as fields
-func createPsOut() ([]map[string]string, string) {
+func createPsOut() ([]common.PsHeader, string) {
 	hdrs := report.Headers(psReporter{}, map[string]string{
 		"Cgroup":       "cgroupns",
 		"CreatedHuman": "created",
@@ -327,7 +327,7 @@ func createPsOut() ([]map[string]string, string) {
 			row += "\t{{.Size}}"
 		}
 	}
-	return hdrs, "{{range .}}" + row + "\n{{end -}}"
+	return []common.PsHeader{common.PsHeader(hdrs[0])}, "{{range .}}" + row + "\n{{end -}}"
 }
 
 type psReporter struct {

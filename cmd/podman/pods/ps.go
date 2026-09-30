@@ -151,7 +151,7 @@ func pods(cmd *cobra.Command, _ []string) error {
 			"Restarts":           "RESTARTS",
 		})
 
-		if err := rpt.Execute(headers); err != nil {
+		if err := rpt.Execute([]common.PsHeader{common.PsHeader(headers[0])}); err != nil {
 			return err
 		}
 	}

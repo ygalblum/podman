@@ -298,10 +298,11 @@ var _ = Describe("Podman ps", func() {
 	})
 
 	It("podman ps namespace flag with go template format", func() {
-		_, ec, _ := podmanTest.RunLsContainer("test1")
-		Expect(ec).To(Equal(0))
+		result := podmanTest.Podman([]string{"run", "--name", "test1", "--network=none", "--label", "app=my-app", ALPINE, "ls"})
+		result.WaitWithDefaultTimeout()
+		Expect(result).Should(Exit(0))
 
-		result := podmanTest.Podman([]string{"ps", "-a", "--format", "table {{.ID}} {{.Image}} {{.ImageID}} {{.Labels}}"})
+		result = podmanTest.Podman([]string{"ps", "-a", "--format", "table {{.ID}} {{.Image}} {{.ImageID}} {{.Labels}}"})
 		result.WaitWithDefaultTimeout()
 		Expect(result).Should(ExitCleanly())
 
@@ -311,6 +312,17 @@ var _ = Describe("Podman ps", func() {
 		Expect(actual[0]).To(ContainSubstring("CONTAINER ID"))
 		Expect(actual[0]).ToNot(ContainSubstring("ImageID"))
 		Expect(actual[1]).To(ContainSubstring("alpine:latest"))
+
+		podmanTest.PodmanExitCleanly("create", "--name", "test2", ALPINE, "ls")
+		format := `table {{.Names}}|{{.Label "app"}}|{{.Label "missing"}}`
+		result = podmanTest.PodmanExitCleanly("ps", "-a", "--format", format)
+		actual = result.OutputToStringArray()
+		Expect(actual).To(HaveLen(3))
+		Expect(actual[0]).To(Equal("NAMES|app|missing"))
+		Expect(actual[1:]).To(ConsistOf("test1|my-app|", "test2||"))
+
+		result = podmanTest.PodmanExitCleanly("ps", "-a", "--noheading", "--format", format)
+		Expect(result.OutputToStringArray()).To(ConsistOf("test1|my-app|", "test2||"))
 	})
 
 	It("podman ps ancestor filter flag", func() {
