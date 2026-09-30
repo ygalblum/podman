@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
@@ -148,6 +149,31 @@ func TestNewPIDHandleFromStringWrongPidData(t *testing.T) {
 	for _, s := range values {
 		_, err := NewPIDHandleFromString(os.Getpid(), s)
 		assert.Error(t, err)
+	}
+}
+
+func TestNewPIDHandleFromStringProcessGone(t *testing.T) {
+	// openByHandleAt may report a process that no longer exists with either
+	// ESTALE or ESRCH; either must leave a handle to a dead process.
+	for _, openErr := range []error{unix.ESTALE, unix.ESRCH} {
+		t.Run(openErr.Error(), func(t *testing.T) {
+			original_openByHandleAt := openByHandleAt
+			t.Cleanup(func() {
+				openByHandleAt = original_openByHandleAt
+			})
+			openByHandleAt = func(_ int, _ unix.FileHandle, _ int) (fd int, err error) {
+				return -1, openErr
+			}
+
+			h, err := NewPIDHandleFromString(os.Getpid(), nameToHandlePrefix+"254 74657374")
+			require.NoError(t, err)
+			defer h.Close()
+
+			alive, err := h.IsAlive()
+			assert.NoError(t, err)
+			assert.False(t, alive)
+			assert.ErrorIs(t, h.Kill(unix.SIGTERM), unix.ESRCH)
+		})
 	}
 }
 

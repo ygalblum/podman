@@ -127,7 +127,9 @@ func NewPIDHandleFromString(pid int, pidData string) (PIDHandle, error) {
 		defer unix.Close(fd)
 		pidfd, err := openByHandleAt(fd, fh, unix.O_CLOEXEC)
 		if err != nil {
-			if errors.Is(err, unix.ESTALE) {
+			// The process is gone: ESTALE once it has been reaped, ESRCH
+			// while it is being reaped (pidfs_export_open).
+			if errors.Is(err, unix.ESTALE) || errors.Is(err, unix.ESRCH) {
 				h.normalHandle.pidData = noSuchProcessID
 				return &h, nil
 			}
