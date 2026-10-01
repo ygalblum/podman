@@ -277,6 +277,7 @@ help: ## Print this help message
 
 # Self-tests that ship next to the tooling they cover. These only need python3,
 # bash and perl, so they can run in validate-source.
+# Example-prompt tests are separate and need neither a built podman nor generated docs.
 # Not included here:
 #   hack/xref-helpmsgs-manpages.t   needs a built podman and docs, so it belongs
 #                                   with validate-binaries instead
@@ -284,6 +285,7 @@ help: ## Print this help message
 .check-self-tests:
 	hack/markdown-preprocess.t
 	hack/swagger-check.t
+	hack/xref-helpmsgs-manpages-examples.t
 	hack/ci/pr-removes-fixed-skips.t
 	hack/ci/pr-should-include-tests.t
 	hack/ci/logformatter.t
