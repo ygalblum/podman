@@ -12,7 +12,7 @@ import (
 // statInsideMount stats the specified path *inside* the container's mount and PID
 // namespace.  It returns the file info along with the resolved root ("/") and
 // the resolved path (relative to the root).
-func (c *Container) statInsideMount(ctx context.Context, containerPath string) (*copier.StatForItem, string, string, error) {
+func (c *Container) statInsideMount(ctx context.Context, containerPath string) (*copier.StatForItem, pathResolution, error) {
 	resolvedRoot := "/"
 	resolvedPath := c.pathAbs(containerPath)
 	var statInfo *copier.StatForItem
@@ -25,12 +25,12 @@ func (c *Container) statInsideMount(ctx context.Context, containerPath string) (
 		},
 	)
 
-	return statInfo, resolvedRoot, resolvedPath, err
+	return statInfo, pathResolution{root: resolvedRoot, path: resolvedPath}, err
 }
 
 // Calls either statOnHost or statInsideMount depending on whether the
 // container is running
-func (c *Container) statInContainer(ctx context.Context, mountPoint string, containerPath string) (*copier.StatForItem, string, string, error) {
+func (c *Container) statInContainer(ctx context.Context, mountPoint string, containerPath string) (*copier.StatForItem, pathResolution, error) {
 	if c.state.State == define.ContainerStateRunning {
 		// If the container is running, we need to join it's mount namespace
 		// and stat there.

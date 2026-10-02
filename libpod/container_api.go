@@ -1197,7 +1197,8 @@ func (c *Container) Stat(ctx context.Context, containerPath string) (*define.Fil
 		}()
 	}
 
-	info, _, _, err := c.stat(ctx, mountPoint, containerPath)
+	info, resolved, err := c.stat(ctx, mountPoint, containerPath)
+	resolved.close()
 	return info, err
 }
 
