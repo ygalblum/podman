@@ -71,8 +71,8 @@ Registering for a meeting sends you an invite for that meeting and all subsequen
 | Meeting | Schedule | Format |
 |---------|----------|--------|
 | [Podman Community Meeting](https://zoom-lfx.platform.linuxfoundation.org/meeting/97486138230?password=3144ae43-0fd5-457e-a495-bb4e0202e9c2) and its [agenda](https://hackmd.io/fc1zraYdS0-klJ2KJcfC7w?both) | First **Tuesday of even-numbered months** (Feb, Apr, Jun, Aug, Oct, Dec) at **11:00 a.m. Eastern** (UTC-4 summer / UTC-5 winter) | ~1 hour — demos, announcements, and community updates |
-| [Podman Monday Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meeting/92776077694?password=deea5903-07a5-4e4d-9ad9-a6f52319fabe) and its [agenda](https://hackmd.io/@TomSweeneyRedHat/H1qIC9nkMe) | Every **Monday at 10:00 a.m. Eastern** (UTC-4 summer / UTC-5 winter) | 30 min — technical discussions, open topics |
-| [Podman Thursday Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meeting/96031375483?password=97015335-907e-4f54-9eff-b3068d7052c9) and its [agenda](https://hackmd.io/@TomSweeneyRedHat/H1qIC9nkMe) | Every **Thursday at 11:00 a.m. Eastern** (UTC-4 summer / UTC-5 winter) | 30 min — technical discussions, open topics |
+| [Podman Monday Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meeting/92776077694?password=deea5903-07a5-4e4d-9ad9-a6f52319fabe) and its [agenda](https://hackmd.io/@TomSweeneyRedHat/H1qIC9nkMe) | Every **Monday at 10:30 a.m. Eastern** (UTC-4 summer / UTC-5 winter) | 30 min — technical discussions, open topics |
+| [Podman Thursday Office Hours](https://zoom-lfx.platform.linuxfoundation.org/meeting/96031375483?password=97015335-907e-4f54-9eff-b3068d7052c9) and its [agenda](https://hackmd.io/@TomSweeneyRedHat/H1qIC9nkMe) | Every **Thursday at 11:30 a.m. Eastern** (UTC-4 summer / UTC-5 winter) | 30 min — technical discussions, open topics |
 
 ## Rootless
 Podman can be easily run as a normal user, without requiring a setuid binary.
