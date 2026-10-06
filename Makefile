@@ -78,11 +78,10 @@ PKG_MANAGER ?= $(shell command -v dnf yum|head -n1)
 # ~/.local/bin is not in PATH on all systems
 PRE_COMMIT = $(shell command -v bin/venv/bin/pre-commit ~/.local/bin/pre-commit pre-commit | head -n1)
 SED=sed
+GREP=grep
 ifeq ($(NATIVE_GOOS),freebsd)
-GREP=ggrep
 MAN_L=	mandoc
 else
-GREP=grep
 MAN_L=	man -l
 endif
 
@@ -610,8 +609,8 @@ $(MANPAGES): %: %.md .install.md2man docdir
 	@if grep 'included file options/' $(OUTFILE); then \
 		echo "FATAL: man pages must not contain ^^^^ in $(OUTFILE)"; exit 1; \
 	fi
-	@if $(MAN_L) $(OUTFILE)| $(GREP) -Pazoq '│\s+│\n\s+├─+┼─+┤\n\s+│\s+│'; then  \
-		echo "FATAL: $< has a too-long table column; use 'man -l $(OUTFILE)' and look for empty table cells."; exit 1; \
+	@if $(MAN_L) $(OUTFILE)| perl -CSD -0777 -ne 'use utf8; exit(m/│\s+│\n\s+├─+┼─+┤\n\s+│\s+│/ ? 0 : 1)'; then  \
+		echo "FATAL: $< has a too-long table column; use '$(MAN_L) $(OUTFILE)' and look for empty table cells."; exit 1; \
 	fi
 
 .PHONY: docdir
