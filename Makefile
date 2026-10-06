@@ -79,7 +79,7 @@ PKG_MANAGER ?= $(shell command -v dnf yum|head -n1)
 PRE_COMMIT = $(shell command -v bin/venv/bin/pre-commit ~/.local/bin/pre-commit pre-commit | head -n1)
 SED=sed
 GREP=grep
-ifeq ($(NATIVE_GOOS),freebsd)
+ifneq (,$(filter $(NATIVE_GOOS),freebsd darwin))
 MAN_L=	mandoc
 else
 MAN_L=	man -l
