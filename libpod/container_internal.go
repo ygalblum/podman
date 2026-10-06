@@ -48,6 +48,7 @@ import (
 	"go.podman.io/podman/v6/pkg/systemd/notifyproxy"
 	"go.podman.io/podman/v6/pkg/util"
 	"go.podman.io/storage"
+	"go.podman.io/storage/pkg/archive"
 	"go.podman.io/storage/pkg/chrootarchive"
 	"go.podman.io/storage/pkg/directory"
 	"go.podman.io/storage/pkg/fileutils"
@@ -791,7 +792,10 @@ func (c *Container) export(out io.Writer) error {
 		}()
 	}
 
-	input, err := chrootarchive.Tar(mountPoint, nil, mountPoint)
+	input, err := chrootarchive.Tar(mountPoint, &archive.TarOptions{
+		UIDMaps: c.config.IDMappings.UIDMap,
+		GIDMaps: c.config.IDMappings.GIDMap,
+	}, mountPoint)
 	if err != nil {
 		return fmt.Errorf("reading container directory %q: %w", c.ID(), err)
 	}
