@@ -1047,9 +1047,7 @@ install.tools: .install.golangci-lint ## Install development tools (linters, etc
 
 .PHONY: .install.md2man
 .install.md2man:
-	if [ ! -x "$(GOMD2MAN)" ]; then \
-		$(MAKE) -C test/tools build/go-md2man GOOS=$(NATIVE_GOOS) GOARCH=$(NATIVE_GOARCH); \
-	fi
+	$(MAKE) -C test/tools build/go-md2man GOOS=$(NATIVE_GOOS) GOARCH=$(NATIVE_GOARCH)
 
 .PHONY: .install.pre-commit
 .install.pre-commit:
