@@ -77,13 +77,11 @@ PYTHON ?= $(shell command -v python3 python|head -n1)
 PKG_MANAGER ?= $(shell command -v dnf yum|head -n1)
 # ~/.local/bin is not in PATH on all systems
 PRE_COMMIT = $(shell command -v bin/venv/bin/pre-commit ~/.local/bin/pre-commit pre-commit | head -n1)
-ifeq ($(NATIVE_GOOS),freebsd)
-SED=gsed
-GREP=ggrep
-MAN_L=	mandoc
-else
 SED=sed
 GREP=grep
+ifneq (,$(filter $(NATIVE_GOOS),freebsd darwin))
+MAN_L=	mandoc
+else
 MAN_L=	man -l
 endif
 
@@ -603,17 +601,18 @@ $(MANPAGES): %: %.md .install.md2man docdir
 #     ASCII art. I (esm) believe the cost of releasing corrupt man pages
 #     is higher than the cost of carrying this kludge.
 #
-	@$(SED) -e 's/\[\([^]]*\)](http[^)]\+)/\1/g'         \
-	        -e 's/\((podman[^)]*\.md\(#.*\)\?)\)//g'     \
-	        -e 's/\[\(podman[^]]*\)\]/\1/g'              \
-	        -e 's;<\(/\)\?\(a\|a\s\+[^>]*\|sup\)>;;g'    \
+	@$(SED) -E \
+	        -e 's/\[([^]]*)\]\(http[^)]+\)/\1/g'         \
+	        -e 's/\((podman[^)]*\.md(#.*)?)\)//g'        \
+	        -e 's/\[(podman[^]]*)\]/\1/g'                \
+	        -e 's;<(/)?(a|a[[:space:]]+[^>]*|sup)>;;g'   \
 	        -e 's/\\$$/  /g' $<                         |\
 	$(GOMD2MAN) -out $(OUTFILE)
 	@if grep 'included file options/' $(OUTFILE); then \
 		echo "FATAL: man pages must not contain ^^^^ in $(OUTFILE)"; exit 1; \
 	fi
-	@if $(MAN_L) $(OUTFILE)| $(GREP) -Pazoq '│\s+│\n\s+├─+┼─+┤\n\s+│\s+│'; then  \
-		echo "FATAL: $< has a too-long table column; use 'man -l $(OUTFILE)' and look for empty table cells."; exit 1; \
+	@if $(MAN_L) $(OUTFILE)| perl -CSD -0777 -ne 'use utf8; exit(m/│\s+│\n\s+├─+┼─+┤\n\s+│\s+│/ ? 0 : 1)'; then  \
+		echo "FATAL: $< has a too-long table column; use '$(MAN_L) $(OUTFILE)' and look for empty table cells."; exit 1; \
 	fi
 
 .PHONY: docdir
