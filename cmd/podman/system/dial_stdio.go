@@ -77,6 +77,9 @@ func runDialStdio(ctx context.Context) error {
 		err = <-conn2stdout
 	case err = <-conn2stdout:
 		// return immediately
+	case <-ctx.Done():
+		err = ctx.Err()
+		// return immediately
 	}
 	return err
 }
