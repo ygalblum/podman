@@ -505,6 +505,7 @@ func makeRuntime(ctx context.Context, runtime *Runtime) (retErr error) {
 	runtime.ociRuntimes = make(map[string]OCIRuntime)
 
 	// Initialize remaining OCI runtimes
+	var defaultOCIRuntimeErr error
 	for name, paths := range runtime.config.Engine.OCIRuntimes {
 		ociRuntime, err := newConmonOCIRuntime(name, paths, runtime.conmonPath, runtime.runtimeFlags, runtime.config)
 		if err != nil {
@@ -513,6 +514,9 @@ func makeRuntime(ctx context.Context, runtime *Runtime) (retErr error) {
 			// runtimes that might not be installed (crun, kata).
 			// Only an infof so default configs don't spec errors.
 			logrus.Debugf("Configured OCI runtime %s initialization failed: %v", name, err)
+			if name == runtime.config.Engine.OCIRuntime {
+				defaultOCIRuntimeErr = err
+			}
 			continue
 		}
 
@@ -534,6 +538,9 @@ func makeRuntime(ctx context.Context, runtime *Runtime) (retErr error) {
 		} else {
 			ociRuntime, ok := runtime.ociRuntimes[runtime.config.Engine.OCIRuntime]
 			if !ok {
+				if defaultOCIRuntimeErr != nil {
+					return fmt.Errorf("default OCI runtime %q failed to initialize: %w", runtime.config.Engine.OCIRuntime, defaultOCIRuntimeErr)
+				}
 				return fmt.Errorf("default OCI runtime %q not found: %w", runtime.config.Engine.OCIRuntime, define.ErrInvalidArg)
 			}
 			runtime.defaultOCIRuntime = ociRuntime
