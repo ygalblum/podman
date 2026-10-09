@@ -271,4 +271,19 @@ EOF
     CONTAINERS_STORAGE_CONF=$PODMAN_TMPDIR/storage.conf run_podman $safe_opts info --format {{.Store.GraphDriverName}}
 }
 
+@test "podman info - report why the default OCI runtime failed to initialize" {
+    skip_if_remote "--tmpdir not supported via remote"
+
+    runtime=$(podman_runtime)
+    safe_opts=$(podman_isolation_opts ${PODMAN_TMPDIR})
+
+    # A regular file in place of the exits directory breaks the runtime
+    # initialization, even as root.
+    touch $PODMAN_TMPDIR/tmpdir/exits
+
+    run_podman 125 $safe_opts info
+    assert "$output" =~ "default OCI runtime \"$runtime\" failed to initialize: creating OCI runtime exit files directory: .*exits: not a directory" \
+           "error explains why the default OCI runtime failed"
+}
+
 # vim: filetype=sh
